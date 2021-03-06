@@ -1,0 +1,47 @@
+apiVersion: install.istio.io/v1alpha1
+kind: IstioOperator
+metadata:
+  namespace: istio-system
+  name: istiocontrolplane
+spec:
+  profile: demo
+  components:
+    ingressGateways:
+    - name: istio-ingressgateway
+      enabled: true
+      k8s:
+        service:
+          ports:
+          - name: status-port
+            nodePort: 31151
+            port: 15021
+            protocol: TCP
+            targetPort: 15021
+          - name: http2
+            nodePort: 32041
+            port: 80
+            protocol: TCP
+            targetPort: 8080
+          - name: https
+            nodePort: 31236
+            port: 443
+            protocol: TCP
+            targetPort: 8443
+          - name: tcp
+            nodePort: 31705
+            port: 31400
+            protocol: TCP
+            targetPort: 31400
+          - name: tls
+            nodePort: 32152
+            port: 15443
+            protocol: TCP
+            targetPort: 15443
+        nodeSelector:
+          ingress-ready: "true"
+        tolerations:
+        - key: "node-role.kubernetes.io/master"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+        
