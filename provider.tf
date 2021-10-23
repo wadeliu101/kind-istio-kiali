@@ -1,16 +1,16 @@
 terraform {
   required_providers {
     kind = {
-      source = "unicell/kind"
-      version = "0.0.2-u2"
+      source  = "justenwalker/kind"
+      version = "0.11.0-rc.1"
     }
     kubernetes = {
       source = "hashicorp/kubernetes"
-      version = "2.0.2"
+      version = "2.6.1"
     }
     helm = {
       source = "hashicorp/helm"
-      version = "2.0.2"
+      version = "2.3.0"
     }
     external = {
       source = "hashicorp/external"
@@ -22,17 +22,15 @@ terraform {
     }
   }
 }
-
 provider "kubernetes" {
-  config_path = kind_cluster.istio-kiali.kubeconfig_path
+  config_context = kind_cluster.k8s-cluster.context
+  config_path    = "~/.kube/config"
 }
-
 provider "helm" {
   kubernetes {
-    config_path = kind_cluster.istio-kiali.kubeconfig_path
+    config_context = kind_cluster.k8s-cluster.context
+    config_path    = "~/.kube/config"
   }
 }
-
 provider "external" {}
-
 provider "null" {}

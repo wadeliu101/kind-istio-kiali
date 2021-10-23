@@ -2,9 +2,8 @@ resource "helm_release" "prometheus-operator" {
   name              = "prometheus-operator"
   repository        = "https://prometheus-community.github.io/helm-charts" 
   chart             = "kube-prometheus-stack"
-  version           = "13.13.1"
+  version           = var.PROMETHEUS_VERSION
   namespace         = "kube-mon"
-
   values = [
   <<EOF
   prometheus:
@@ -39,8 +38,8 @@ resource "helm_release" "prometheus-operator" {
     enabled: false
   EOF
   ]
-
   create_namespace  = true
-
-  depends_on = [ null_resource.installing-istio ]
+  depends_on = [
+    time_sleep.wait_istio_ready
+  ]
 }

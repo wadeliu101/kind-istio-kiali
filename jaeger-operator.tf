@@ -2,9 +2,8 @@ resource "helm_release" "jaeger-operator" {
   name              = "jaeger-operator"
   repository        = "https://jaegertracing.github.io/helm-charts" 
   chart             = "jaeger-operator"
-  version           = "2.19.1"
+  version           = var.JAEGER_VERSION
   namespace         = "jaeger-operator"
-
   values = [
   <<EOF
   rbac:
@@ -14,8 +13,8 @@ resource "helm_release" "jaeger-operator" {
     namespace: istio-system
   EOF
   ]
-
   create_namespace  = true
-
-  depends_on = [ null_resource.installing-istio ]
+  depends_on = [
+    time_sleep.wait_istio_ready
+  ]
 }

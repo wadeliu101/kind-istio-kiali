@@ -1,7 +1,7 @@
-resource "kind_cluster" "istio-kiali" {
-  name = "istio-kiali"
-  node_image = "kindest/node:v1.20.2@sha256:8f7ea6e7642c0da54f04a7ee10431549c0257315b3a634f6ef2fecaaedb19bab"
-  kind_config = <<KIONF
+resource "kind_cluster" "k8s-cluster" {
+  name   = "k8s-cluster"
+  image  = "kindest/node:v${var.KIND_VERSION}"
+  config = <<-EOF
     kind: Cluster
     apiVersion: kind.x-k8s.io/v1alpha4
     nodes:
@@ -21,11 +21,5 @@ resource "kind_cluster" "istio-kiali" {
         protocol: TCP
     - role: worker
     - role: worker
-  KIONF
-  wait_for_ready = true
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "rm ${self.kubeconfig_path}"
-  }
+  EOF
 }
