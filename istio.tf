@@ -117,3 +117,12 @@ resource "time_sleep" "wait_istio_ready" {
     local_file.istio-profile
   ]
 }
+data "kubernetes_service" "istio-ingressgateway" {
+  metadata {
+    name = "istio-ingressgateway"
+    namespace = kubernetes_namespace.istio-system.metadata[0].name
+  }
+  depends_on = [
+    time_sleep.wait_istio_ready
+  ]
+}
