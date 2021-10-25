@@ -36,10 +36,12 @@ resource "helm_release" "prometheus-operator" {
           regex: '.*-envoy-prom'
   alertmanager:
     enabled: false
+  grafana:
+    adminPassword: admin
   EOF
   ]
   create_namespace  = true
   depends_on = [
-    time_sleep.wait_istio_ready
+    module.kind-istio-metallb
   ]
 }

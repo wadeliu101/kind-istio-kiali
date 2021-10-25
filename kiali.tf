@@ -1,3 +1,13 @@
+resource "kubernetes_namespace" "kiali" {
+  metadata {
+    name = "kiali"
+  }
+  depends_on = [
+    module.kind-istio-metallb,
+    helm_release.prometheus-operator,
+    helm_release.jaeger-operator
+  ]
+}
 resource "helm_release" "kiali-operator" {
   name       = "kiali-operator"
   repository = "https://kiali.org/helm-charts"
@@ -5,44 +15,37 @@ resource "helm_release" "kiali-operator" {
   version    = var.KIALI_VERSION
   namespace  = "kiali-operator"
   create_namespace = true
-  depends_on = [
-    time_sleep.wait_istio_ready,
-    helm_release.prometheus-operator,
-    helm_release.jaeger-operator
+  values = [
+    <<-EOF
+    clusterRoleCreator: true
+    cr:
+      create: true
+      namespace: ${kubernetes_namespace.kiali.metadata[0].name}
+      spec:
+        auth:
+          strategy: "anonymous"
+        deployment:
+          accessible_namespaces: 
+          - "**"
+          ingress_enabled: false
+        istio_namespace: istio-system
+        external_services:
+          prometheus:
+            url: "http://prometheus-operator-kube-p-prometheus.${helm_release.prometheus-operator.namespace}:9090"
+          grafana:
+            in_cluster_url: http://prometheus-operator-grafana.${helm_release.prometheus-operator.namespace}
+            url: http://prometheus-operator-grafana.${helm_release.prometheus-operator.namespace}
+            auth:
+              password: "admin"
+              username: "admin"
+              type: "basic"
+          tracing:
+            in_cluster_url: http://jaeger-operator-jaeger-query.${kubernetes_namespace.jaeger.metadata[0].name}:16685
+    EOF
   ]
 }
-resource "local_file" "kiali" {
+resource "local_file" "kiali-router" {
   content  = <<-EOF
-  apiVersion: kiali.io/v1alpha1
-  kind: Kiali
-  metadata:
-    name: kiali
-    annotations:
-      ansible.operator-sdk/verbosity: "1"
-  spec:
-    deployment:
-      accessible_namespaces:
-      - "**"
-      ingress_enabled: false
-      namespace: istio-system
-    auth:
-      strategy: "anonymous"
-    external_services:
-      istio:
-        config_map_name: "istio"
-        istiod_deployment_name: "istiod"
-        istio_sidecar_injector_config_map_name: "istio-sidecar-injector"
-      prometheus:
-        url: "http://prometheus-operator-kube-p-prometheus.kube-mon:9090"
-      grafana:
-        in_cluster_url: http://prometheus-operator-grafana.kube-mon
-        url: http://prometheus-operator-grafana.kube-mon
-        auth:
-          password: 'prom-operator'
-          username: 'admin'
-      tracing:
-        in_cluster_url: http://jaeger-operator-jaeger-query.istio-system:16685
-  ---
   apiVersion: networking.istio.io/v1alpha3
   kind: Gateway
   metadata:
@@ -56,7 +59,7 @@ resource "local_file" "kiali" {
         name: http
         protocol: HTTP
       hosts:
-      - "kiali.${data.kubernetes_service.istio-ingressgateway.status.0.load_balancer.0.ingress.0.ip}.nip.io"
+      - "kiali.${module.kind-istio-metallb.ingress_ip_address}.nip.io"
   ---
   apiVersion: networking.istio.io/v1alpha3
   kind: VirtualService
@@ -64,19 +67,19 @@ resource "local_file" "kiali" {
     name: kiali
   spec:
     hosts:
-    - "kiali.${data.kubernetes_service.istio-ingressgateway.status.0.load_balancer.0.ingress.0.ip}.nip.io"
+    - "kiali.${module.kind-istio-metallb.ingress_ip_address}.nip.io"
     gateways:
     - kiali
     http:
     - route:
       - destination:
-          host: kiali
+          host: kiali.${kubernetes_namespace.kiali.metadata[0].name}.svc.cluster.local
           port:
             number: 20001
   EOF
   filename = "${path.root}/configs/kiali.yaml"
   provisioner "local-exec" {
-    command = "kubectl apply -f ${self.filename} -n ${kubernetes_namespace.istio-system.metadata[0].name}"
+    command = "kubectl apply -f ${self.filename} -n ${kubernetes_namespace.kiali.metadata[0].name}"
   }
   depends_on = [
     helm_release.kiali-operator

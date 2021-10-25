@@ -1,3 +1,8 @@
+resource "kubernetes_namespace" "jaeger" {
+  metadata {
+    name = "jaeger"
+  }
+}
 resource "helm_release" "jaeger-operator" {
   name              = "jaeger-operator"
   repository        = "https://jaegertracing.github.io/helm-charts" 
@@ -10,11 +15,14 @@ resource "helm_release" "jaeger-operator" {
     clusterRole: true
   jaeger:
     create: true
-    namespace: istio-system
+    namespace: ${kubernetes_namespace.jaeger.metadata[0].name}
+    spec:
+      ingress:
+        enabled: false
   EOF
   ]
   create_namespace  = true
   depends_on = [
-    time_sleep.wait_istio_ready
+    module.kind-istio-metallb
   ]
 }
